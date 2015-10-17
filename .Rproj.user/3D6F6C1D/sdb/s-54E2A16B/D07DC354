@@ -1,0 +1,17 @@
+{
+    "contents" : "/data",
+    "created" : 1445107138991.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "151282615",
+    "id" : "D07DC354",
+    "lastKnownWriteTime" : 1445107142,
+    "path" : "~/capstone/.gitignore",
+    "project_path" : ".gitignore",
+    "properties" : {
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "type" : "gitignore"
+}
