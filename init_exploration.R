@@ -29,4 +29,11 @@ user <- stream_in(file('data/yelp_academic_dataset_user.json'))
 ## Get user with complement votes for funny above 10k
 funny_dude <- user[which(user$compliments$funny >= 10000),]
 
-table(user[which(user$compliments$funny >= 1),],user[which(user$fans >= 1),])
+## Flatten from for cross tabulation
+cross <- flatten(user)
+## Replace NAs with 0
+cross [is.na(cross)] <- 0
+## Run fisher.test on cross tabulation
+results <- fisher.test(table(cross$fans >= 1, cross$compliments.funny >= 1))
+
+
