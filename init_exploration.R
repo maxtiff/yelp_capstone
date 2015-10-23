@@ -3,20 +3,38 @@ setwd('~/capstone')
 library(jsonlite)
 library(RJSONIO)
 library(rjson)
+library(foreach)
+library(doSNOW)
+
+## Initialize clusters for multi-core processing
+cl       <- makeCluster(4)
+registerDoSNOW(cl)
 
 ## Source all required scripts.
 required_scripts <- c('download.R')
 sapply(required_scripts, source, .GlobalEnv)
 
 ## Download yelp dataset
-url      <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/yelp_dataset_challenge_academic_dataset.zip"
+url      <- "https://d396qusza40orc.cloudfront.net/
+             dsscapstone/dataset/yelp_dataset_challenge_academic_dataset.zip"
+url      <- strwrap(url, width=10000,simplify=T)
 download(url)
 
-## Get data directories
-dirs     <- list.dirs(dir(pattern = 'data'))
+## Get each json file into a data frame in global environment
+paths    <- list.dirs(dir(pattern = 'data'))
+data_dir <- paths[2]
+jsons    <- list.files(data_dir,pattern = '\\.json$')
 
-## Get json files for analysis
-jsons    <- list.files(dirs[2],pattern = '\\.json$')
+foreach(i=1:length(jsons)) %dopar% {
+  library(jsonlite)
+  
+  path   <- paste(data_dir,jsons[i],sep='/')
+  print(path)
+  varname <-gsub('yelp\\_academic\\_dataset\\_',"",jsons[i])
+  assign(varname,stream_in(file(path)))
+}
+
+stopCluster(cl)
 
 ## Read in review json file
 review   <- stream_in(file('data/yelp_academic_dataset_review.json'))
