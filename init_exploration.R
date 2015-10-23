@@ -36,6 +36,14 @@ foreach(i=1:length(jsons)) %dopar% {
 
 stopCluster(cl)
 
+###############
+## What makes a good burger joint?
+burger <- yelp_academic_dataset_business.json[which(grepl('Burger',
+                                                          yelp_academic_dataset_business.json$categories)),]
+
+######################################################################
+## Initial Exploration
+
 ## Read in review json file
 review   <- stream_in(file('data/yelp_academic_dataset_review.json'))
 ## View row 1000 of review json
