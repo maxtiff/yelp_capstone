@@ -38,8 +38,9 @@ stopCluster(cl)
 
 ###############
 ## What makes a good burger joint?
-burger <- yelp_academic_dataset_business.json[which(grepl('Burger',
-                                                          yelp_academic_dataset_business.json$categories)),]
+burger <- business[which(grepl('Burger',business$categories)),]
+
+
 
 ######################################################################
 ## Initial Exploration
@@ -70,9 +71,25 @@ fun_guy  <- user[which(user$compliments$funny >= 10000),]
 
 ## Flatten user data for cross tabulation
 cross    <- flatten(user)
+burger_flat <- flatten(burger)
 ## Replace NAs with 0
 cross [is.na(cross)] <- 0
+burger_flat [is.na(burger_flat)] <- 0
 ## Run fisher.test on cross tabulation
-results  <- fisher.test(table(cross$fans >= 1, cross$compliments.funny >= 1))
+results1  <- fisher.test(table(cross$fans >= 1, cross$votes.useful >= 1))
+results2  <- fisher.test(table(cross$compliments.cute >= 1, cross$fans >= 1))
+results3  <- fisher.test(table(burger_flat$stars >= 4.0, 
+                               burger_flat$attributes.Ambience.hipster))
 
+# aim to build a model that predicts the mean star rating of each of the ~3000
+# medical professionals (doctors, dentists, therapists) in the data set. 
+# Candidate predictors will include hours of operation, parking, specialization,
+# review language indicating levels of administrative service, bedside manner, 
+# and medical effectiveness, country, business size, and other factors. 
+# I will attempt multivariate polynomial linear regression, splines, regression 
+# trees in a random forest, (+ other algorithms I may explore) and ensemble solutions
+# that combine models to maximize predictive accuracy. Focusing on medical 
+# professionals reduces the heterogeneity of the dataset, and also spotlights 
+# professionals that clients hesitate to review -- a spotlight that may help 
+# understand how reviewers negociate this new and difficult public conversation. 
 
