@@ -17,7 +17,7 @@ sapply(required_scripts, source, .GlobalEnv)
 ## Download yelp dataset
 url      <- "https://d396qusza40orc.cloudfront.net/
              dsscapstone/dataset/yelp_dataset_challenge_academic_dataset.zip"
-url      <- strwrap(url, width=10000,simplify=T)
+url      <- gsub(pattern='\\s',replacement="",x=url)
 download(url)
 
 ## Get each json file into a data frame in global environment
@@ -38,9 +38,37 @@ stopCluster(cl)
 
 ###############
 ## What makes a good burger joint?
-burger <- business[which(grepl('Burger',business$categories)),]
+burger      = business[which(grepl('Burger',business$categories)),]
+burger_flat = flatten(burger)
+## Replace NAs with 0
+cross [is.na(cross)]             = 0
+burger_flat [is.na(burger_flat)] = 0
 
+regex_string = 'hours\\.\\w+day\\.\\w+|
+                attributes\\.Music\\.\\w+|
+                attributes\\.Hair Types Specialized In\\.\\w+'
 
+regex_string =  gsub(pattern='\\s',replacement="",x=regex_string)
+
+burger_flat  = as.data.frame(burger_flat[which(!grepl(regex_string,colnames(burger_flat)))])
+
+burger_ids   = as.list(burger_flat$business_id)
+
+review_flat  = as.data.frame(flatten(review))
+
+# Subset review data by business ids from burger_flat subset
+review_flat  = review_flat[review_flat$business_id %in% burger_ids,]
+
+review_users = as.list(unique(review_flat$user_id))
+
+user_flat    = flatten(user)
+
+user_flat    = user_flat[user_flat$user_id %in% review_users,]
+drop <- function(x) {
+  return(x[,!c("V1", "user_name", "raw_timestamp_part_1", 
+               "raw_timestamp_part_2", "cvtd_timestamp", "new_window", 
+               "num_window"),with=F])
+}
 
 ######################################################################
 ## Initial Exploration
