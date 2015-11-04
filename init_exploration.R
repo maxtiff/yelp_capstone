@@ -44,7 +44,6 @@ stopCluster(cl)
 burger         = business[which(grepl('Burger',business$categories)),]
 burger_flat    = flatten(burger)
 ## Replace NAs with 0
-cross [is.na(cross)]             = 0
 burger_flat [is.na(burger_flat)] = 0
 
 regex_string   = 'hours\\.\\w+day\\.\\w+|
@@ -116,7 +115,7 @@ tip      <- stream_in(file('data/yelp_academic_dataset_tip.json'))
 tip[1000,]
 
 ## Read in check-n json file
-checkin  <- stream_in(file())
+checkin  <- stream_in(file('data/yelp_academic_dataset_checkin.json'))
 
 ## Read in user json file
 user     <- stream_in(file('data/yelp_academic_dataset_user.json'))
