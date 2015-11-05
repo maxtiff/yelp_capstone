@@ -8,6 +8,7 @@ require(doSNOW)
 require(tm)
 require(wordcloud)
 require(RColorBrewer)
+require(ggplot2)
 
 ## Initialize clusters for multi-core processing
 cl       <- makeCluster(4)
@@ -44,7 +45,7 @@ stopCluster(cl)
 burger         = business[which(grepl('Burger',business$categories)),]
 burger_flat    = flatten(burger)
 ## Replace NAs with 0
-burger_flat [is.na(burger_flat)] = 0
+burger_flat [is.na(burger_flat)]  =0
 
 regex_string   = 'hours\\.\\w+day\\.\\w+|
                   attributes\\.Music\\.\\w+|
@@ -55,45 +56,65 @@ regex_string   =  gsub(pattern='\\s',replacement="",x=regex_string)
 burger_flat    = as.data.frame(burger_flat[which(!grepl(regex_string,
                                                       colnames(burger_flat)))])
 
+drops          = c('type',
+                   'latitude',
+                   'longitude',
+                   'full_address',
+                   'open',
+                   'neighborhoods',
+                   'attributes.By Appointment Only',
+                   'attributes.Good For Dancing',
+                   'attributes.Coat Check',
+                   'attributes.Smoking',
+                   'attributes.Caters',
+                   'attributes.Dogs Allowed',
+                   'attributes.Accepts Insurance',
+                   'attributes.Ages Allowed')
+
+burger_flat    = burger_flat[,!(names(burger_flat) %in% drops)]
+
+
 # Subset review data by business ids from burger_flat subset
 burger_ids     = as.list(burger_flat$business_id)
 review_flat    = as.data.frame(flatten(review))
 burger_review  = review_flat[review_flat$business_id %in% burger_ids,]
 
+# Merge restaurant and review data
+merged         = merge(burger_review, burger_flat, by = "business_id")
+
 # Subset tip data by business ids from burger_flat subset
 tip_flat       = as.data.frame(flatten(tip))
 burger_tip     = tip_flat[tip_flat$business_id %in% burger_ids,]
 
-# Subset user data by users who have reviewed burger spots
+# Subset user data by users who have reviewed burger spots to check for
+# sham reviewers
 review_users   = as.list(unique(burger_review$user_id))
 user_flat      = flatten(user)
 user_flat      = user_flat[user_flat$user_id %in% review_users,]
 
 # Review corpus for sentiment analysis
-vs       = VectorSource(burger_review$text)
-myCorpus = Corpus(vs)
+vs       = VectorSource(merged$text)
+myCorpus = VCorpus(vs)
 myCorpus = tm_map(myCorpus, content_transformer(tolower))
 myCorpus = tm_map(myCorpus, removePunctuation)
 myCorpus = tm_map(myCorpus, removeNumbers)
 myCorpus = tm_map(myCorpus, function(x) removeWords(x, stopwords("english")))
+myCorpus = tm_map(myCorpus, stemDocument)
 
+# Create word cloud
 c_tdm    = TermDocumentMatrix(myCorpus)
 c_tdm    = rollup(c_tdm, 2, na.rm=TRUE, FUN = sum)
 c_tdm.m  = as.matrix(c_tdm)
 c_tdm.v  = sort(rowSums(c_tdm.m),decreasing=TRUE)
 c_tdm.d  = data.frame(word = names(c_tdm.v),freq=c_tdm.v)
 table(c_tdm.d$freq)
-pal2 <- brewer.pal(8,"Dark2")
+pal2 = brewer.pal(8,"Dark2")
 png("wordcloud_packages.png", width=1280,height=800)
 wordcloud(c_tdm.d$word,c_tdm.d$freq, scale=c(8,.2),min.freq=3,
           max.words=Inf, random.order=FALSE, rot.per=.15, colors=pal2)
 dev.off()
 
-drop <- function(x) {
-  return(x[,!c("V1", "user_name", "raw_timestamp_part_1", 
-               "raw_timestamp_part_2", "cvtd_timestamp", "new_window", 
-               "num_window"),with=F])
-}
+
 
 ######################################################################
 ## Initial Exploration
