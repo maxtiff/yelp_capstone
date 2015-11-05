@@ -40,6 +40,9 @@ foreach(i=1:length(jsons)) %dopar% {
 
 stopCluster(cl)
 
+positive       = read.delim('positive-words.txt', skip=33)
+negative       = read.delim('negative-words.txt', skip=33)
+
 ###############
 ## What makes a good burger joint?
 burger         = business[which(grepl('Burger',business$categories)),]
@@ -49,7 +52,8 @@ burger_flat [is.na(burger_flat)]  =0
 
 regex_string   = 'hours\\.\\w+day\\.\\w+|
                   attributes\\.Music\\.\\w+|
-                  attributes\\.Hair Types Specialized In\\.\\w+'
+                  attributes\\.Hair Types Specialized In\\.\\w+|
+                  attributes\\.Dietary Restrictions\\.\\w+'
 
 regex_string   =  gsub(pattern='\\s',replacement="",x=regex_string)
 
@@ -80,7 +84,7 @@ review_flat    = as.data.frame(flatten(review))
 burger_review  = review_flat[review_flat$business_id %in% burger_ids,]
 
 # Merge restaurant and review data
-merged         = merge(burger_review, burger_flat, by = "business_id")
+merged         = merge(burger_review, burger_flat, by ='business_id')
 
 # Subset tip data by business ids from burger_flat subset
 tip_flat       = as.data.frame(flatten(tip))
