@@ -9,37 +9,40 @@ require(tm)
 require(wordcloud)
 require(RColorBrewer)
 require(ggplot2)
+require(slam)
+require(lda)
 
 ## Initialize clusters for multi-core processing
-cl       <- makeCluster(4)
+cl       = makeCluster(4)
 registerDoSNOW(cl)
 
 ## Source all required scripts.
-required_scripts <- c('download.R')
+required_scripts = c('download.R')
 sapply(required_scripts, source, .GlobalEnv)
 
 ## Download yelp dataset
-url      <- "https://d396qusza40orc.cloudfront.net/
+url      = "https://d396qusza40orc.cloudfront.net/
              dsscapstone/dataset/yelp_dataset_challenge_academic_dataset.zip"
-url      <- gsub(pattern='\\s',replacement="",x=url)
+url      = gsub(pattern='\\s',replacement="",x=url)
 download(url)
 
 ## Get each json file into a data frame in global environment
-paths    <- list.dirs(dir(pattern = 'data'))
-data_dir <- paths[2]
-jsons    <- list.files(data_dir,pattern = '\\.json$')
+paths    = list.dirs(dir(pattern = 'data'))
+data_dir = paths[2]
+jsons    = list.files(data_dir,pattern = '\\.json$')
 
 foreach(i=1:length(jsons)) %dopar% {
   library(jsonlite)
   
-  path   <- paste(data_dir,jsons[i],sep='/')
+  path   = paste(data_dir,jsons[i],sep='/')
   print(path)
-  varname <-gsub('yelp\\_academic\\_dataset\\_',"",jsons[i])
+  varname = gsub('yelp\\_academic\\_dataset\\_',"",jsons[i])
   assign(varname,stream_in(file(path)))
 }
 
 stopCluster(cl)
 
+# Load sentiment dictionaries
 positive       = read.delim('positive-words.txt', skip=33)
 negative       = read.delim('negative-words.txt', skip=33)
 
@@ -77,7 +80,6 @@ drops          = c('type',
 
 burger_flat    = burger_flat[,!(names(burger_flat) %in% drops)]
 
-
 # Subset review data by business ids from burger_flat subset
 burger_ids     = as.list(burger_flat$business_id)
 review_flat    = as.data.frame(flatten(review))
@@ -86,9 +88,15 @@ burger_review  = review_flat[review_flat$business_id %in% burger_ids,]
 # Merge restaurant and review data
 merged         = merge(burger_review, burger_flat, by ='business_id')
 
-# Subset tip data by business ids from burger_flat subset
-tip_flat       = as.data.frame(flatten(tip))
-burger_tip     = tip_flat[tip_flat$business_id %in% burger_ids,]
+# Break restaurants data into good and bad restaurants subsets to train
+bad_rr         = burger_flat[burger_flat$stars <= 2.5,]
+neutral_rr     = burger_flat[burger_flat$stars > 2.5 || burger_flat$stars < 4.0,]
+good_rr        = burger_flat[burger_flat$stars >= 4.0,]
+
+# Break review data into good and bad subsets to train classifier
+good_rev       = merged[merged$stars.x >= 4,]
+bad_rev        = merged[merged$stars.x <= 2,]
+neutral_rev    = merged[merged$stars.x == 3,]
 
 # Subset user data by users who have reviewed burger spots to check for
 # sham reviewers
@@ -118,6 +126,18 @@ wordcloud(c_tdm.d$word,c_tdm.d$freq, scale=c(8,.2),min.freq=3,
           max.words=Inf, random.order=FALSE, rot.per=.15, colors=pal2)
 dev.off()
 
+# LDA model
+# MCMC and model tuning parameters:
+K <- 20
+G <- 5000
+alpha <- 0.02
+eta <- 0.02
+
+set.seed(46)
+# t1 <- Sys.time()
+git <- lda.collapsed.gibbs.sampler(myCorpus, K=K, vocab = c_tdm.d$word, 
+                                   num.iterations = G, alpha = alpha, eta = eta, 
+                                   initial = NULL, burnin = 0, compute.log.likelihood = T )
 
 
 ######################################################################
