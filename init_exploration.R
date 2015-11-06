@@ -11,6 +11,7 @@ require(RColorBrewer)
 require(ggplot2)
 require(slam)
 require(lda)
+require(e1071)
 
 ## Initialize clusters for multi-core processing
 cl       = makeCluster(4)
@@ -51,7 +52,7 @@ negative       = read.delim('negative-words.txt', skip=33)
 burger         = business[which(grepl('Burger',business$categories)),]
 burger_flat    = flatten(burger)
 ## Replace NAs with 0
-burger_flat [is.na(burger_flat)]  =0
+burger_flat[is.na(burger_flat)] = 0
 
 regex_string   = 'hours\\.\\w+day\\.\\w+|
                   attributes\\.Music\\.\\w+|
@@ -90,13 +91,12 @@ merged         = merge(burger_review, burger_flat, by ='business_id')
 
 # Break restaurants data into good and bad restaurants subsets to train
 bad_rr         = burger_flat[burger_flat$stars <= 2.5,]
-neutral_rr     = burger_flat[burger_flat$stars > 2.5 || burger_flat$stars < 4.0,]
 good_rr        = burger_flat[burger_flat$stars >= 4.0,]
 
 # Break review data into good and bad subsets to train classifier
 good_rev       = merged[merged$stars.x >= 4,]
 bad_rev        = merged[merged$stars.x <= 2,]
-neutral_rev    = merged[merged$stars.x == 3,]
+
 
 # Subset user data by users who have reviewed burger spots to check for
 # sham reviewers
@@ -126,7 +126,36 @@ wordcloud(c_tdm.d$word,c_tdm.d$freq, scale=c(8,.2),min.freq=3,
           max.words=Inf, random.order=FALSE, rot.per=.15, colors=pal2)
 dev.off()
 
-# LDA model
+# LDA model test
+stop_words <- stopwords("SMART")
+
+reviews <- gsub("'", "", merged$text)  # remove apostrophes
+reviews <- gsub("[[:punct:]]", " ", reviews)  # replace punctuation with space
+reviews <- gsub("[[:cntrl:]]", " ", reviews)  # replace control characters with space
+reviews <- gsub("^[[:space:]]+", "", reviews) # remove whitespace at beginning of documents
+reviews <- gsub("[[:space:]]+$", "", reviews) # remove whitespace at end of documents
+reviews <- tolower(reviews)  # force to lowercase
+
+# tokenize on space and output as a list:
+doc.list <- strsplit(reviews, "[[:space:]]+")
+
+# compute the table of terms:
+term.table <- table(unlist(doc.list))
+term.table <- sort(term.table, decreasing = TRUE)
+
+# remove terms that are stop words or occur fewer than 5 times:
+del <- names(term.table) %in% stop_words | term.table < 5
+term.table <- term.table[!del]
+vocab <- names(term.table)
+
+# now put the documents into the format required by the lda package:
+get.terms <- function(x) {
+  index <- match(x, vocab)
+  index <- index[!is.na(index)]
+  rbind(as.integer(index - 1), as.integer(rep(1, length(index))))
+}
+documents <- lapply(doc.list, get.terms)
+
 # MCMC and model tuning parameters:
 K <- 20
 G <- 5000
@@ -135,7 +164,7 @@ eta <- 0.02
 
 set.seed(46)
 # t1 <- Sys.time()
-git <- lda.collapsed.gibbs.sampler(myCorpus, K=K, vocab = c_tdm.d$word, 
+git <- lda.collapsed.gibbs.sampler(documents, K=K, vocab = vocab, 
                                    num.iterations = G, alpha = alpha, eta = eta, 
                                    initial = NULL, burnin = 0, compute.log.likelihood = T )
 
