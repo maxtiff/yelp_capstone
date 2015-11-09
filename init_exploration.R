@@ -11,7 +11,10 @@ require(RColorBrewer)
 require(ggplot2)
 require(slam)
 require(lda)
+require(LDAvis)
+require(qdap)
 require(e1071)
+require(caret)
 
 ## Initialize clusters for multi-core processing
 cl       = makeCluster(4)
@@ -43,7 +46,7 @@ foreach(i=1:length(jsons)) %dopar% {
 
 stopCluster(cl)
 
-# Load sentiment dictionaries
+# Load sen timent dictionaries
 positive       = read.delim('positive-words.txt', skip=33)
 negative       = read.delim('negative-words.txt', skip=33)
 
@@ -55,9 +58,9 @@ burger_flat    = flatten(burger)
 burger_flat[is.na(burger_flat)] = 0
 
 regex_string   = 'hours\\.\\w+day\\.\\w+|
-                  attributes\\.Music\\.\\w+|
-                  attributes\\.Hair Types Specialized In\\.\\w+|
-                  attributes\\.Dietary Restrictions\\.\\w+'
+                  attributes\\.^Music\\.\\w+|
+                  attributes\\.^Hair\\w+|
+                  attributes\\.^Dietary\\w+'
 
 regex_string   =  gsub(pattern='\\s',replacement="",x=regex_string)
 
@@ -122,7 +125,7 @@ c_tdm.d  = data.frame(word = names(c_tdm.v),freq=c_tdm.v)
 table(c_tdm.d$freq)
 pal2 = brewer.pal(8,"Dark2")
 png("wordcloud_packages.png", width=1280,height=800)
-wordcloud(c_tdm.d$word,c_tdm.d$freq, scale=c(8,.2),min.freq=3,
+wordcloud(c_tdm.d$word,c_tdm.d$freq, scale=c(8,.2),min.freq=15,
           max.words=Inf, random.order=FALSE, rot.per=.15, colors=pal2)
 dev.off()
 
@@ -156,18 +159,42 @@ get.terms <- function(x) {
 }
 documents <- lapply(doc.list, get.terms)
 
+# Compute some statistics related to the data set:
+D <- length(documents)  # number of documents (2,000)
+W <- length(vocab)  # number of terms in the vocab (14,568)
+doc.length <- sapply(documents, function(x) sum(x[2, ]))  # number of tokens per document [312, 288, 170, 436, 291, ...]
+N <- sum(doc.length)  # total number of tokens in the data (546,827)
+term.frequency <- as.integer(term.table)  # frequencies of terms in the corpus [8939, 5544, 2411, 2410, 2143, ...]
+
 # MCMC and model tuning parameters:
-K <- 20
-G <- 5000
-alpha <- 0.02
-eta <- 0.02
+K     = 20
+G     = 5000
+alpha = 0.02
+eta   = 0.02
 
 set.seed(46)
-# t1 <- Sys.time()
-git <- lda.collapsed.gibbs.sampler(documents, K=K, vocab = vocab, 
+t1    = Sys.time()
+fit   = lda.collapsed.gibbs.sampler(documents, K=K, vocab = vocab, 
                                    num.iterations = G, alpha = alpha, eta = eta, 
                                    initial = NULL, burnin = 0, compute.log.likelihood = T )
+t2    = Sys.time()
 
+t2-t1
+
+theta = t(apply(fit$document_sums + alpha, 2, function(x) x/sum(x)))
+phi   = t(apply(t(fit$topics) + eta, 2, function(x) x/sum(x)))
+
+bjr   =  list(phi = phi,
+              theta = theta,
+              doc.length = doc.length,
+              vocab = vocab,
+              term.frequency = term.frequency)
+
+json <- createJSON(phi = bjr$phi, 
+                   theta = bjr$theta, 
+                   doc.length = bjr$doc.length, 
+                   vocab = bjr$vocab, 
+                   term.frequency = bjr$term.frequency)
 
 ######################################################################
 ## Initial Exploration
