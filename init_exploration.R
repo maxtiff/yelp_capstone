@@ -12,7 +12,6 @@ require(ggplot2)
 require(slam)
 require(lda)
 require(LDAvis)
-require(qdap)
 require(e1071)
 require(caret)
 
@@ -125,7 +124,7 @@ c_tdm.d  = data.frame(word = names(c_tdm.v),freq=c_tdm.v)
 table(c_tdm.d$freq)
 pal2 = brewer.pal(8,"Dark2")
 png("wordcloud_packages.png", width=1280,height=800)
-wordcloud(c_tdm.d$word,c_tdm.d$freq, scale=c(8,.2),min.freq=15,
+wordcloud(c_tdm.d$word,c_tdm.d$freq, scale=c(8,.2),min.freq=1000,
           max.words=Inf, random.order=FALSE, rot.per=.15, colors=pal2)
 dev.off()
 
